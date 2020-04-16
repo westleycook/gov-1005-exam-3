@@ -20,6 +20,10 @@ library(skimr)
 
 library(gt)
 
+# for tidy()
+
+library(broom)
+
 ```
 
 ## Question 1: Exploratory Data Analysis
@@ -32,9 +36,23 @@ I expect the correlation between number of migrants and the amount of remittance
 
 ```{r question_1b, echo=FALSE}
 
+# This r chunk loads data on migrants and data on remittances, tidying both
+# before joining them by country and year. It then plots remittances by number
+# of migrants, modifies the data to transform both variables to a log scale, and
+# re-plots the log of remittances by the log of migrants
+
+# loading raw migrant data, specifying col_types to preclude message output
+
 raw_migrants <- read_csv("raw-data/number_migrants.csv", col_types = cols())
 
+# loading raw remittance data, specifying col_types to preclude message output
+
 raw_remittances <- read_csv("raw-data/remittances.csv", col_types = cols())
+
+# tidying migrant data by pivoting. I take all columns with migrant numbers,
+# drop the prefix migrants_ from the name, and put the names (now just years)
+# under a new "year" variable. I put the values under a new "migrants" variable,
+# dropping all NA values
 
 migrants <- raw_migrants %>% 
   pivot_longer(cols = migrants_1990:migrants_2015,
@@ -42,6 +60,12 @@ migrants <- raw_migrants %>%
                names_prefix = "migrants_",
                values_to = "migrants",
                values_drop_na = TRUE)
+
+# tidying remittances data in an almost identical way. I take all columns with
+# remittance outflow numbers, drop the prefix remittances_ from the name, and
+# put the names (now just years) under a new "year" variable. I put the values
+# under a new "remittances" variable, dropping all NA values. I also rename
+# "Country" to "country" for easy joining with the migrants data
 
 remittances <- raw_remittances %>% 
   pivot_longer(cols = remittances_1990:remittances_2015,
@@ -51,36 +75,53 @@ remittances <- raw_remittances %>%
                values_drop_na = TRUE) %>% 
   rename(country = Country)
 
+# joining the data. I use left_join() to preserve the continents variable in
+# migrants and join by country and year. I then use omit any NA values from the
+# results and use filter() to get rid of any 0 values under remittances or
+# migrants
+
 joined <- left_join(migrants, remittances, by = c("country", "year")) %>% 
   na.omit() %>% 
   filter(remittances != 0,
          migrants != 0)
 
+# plotting remittances by number of migrants, coloring by year. I divide values
+# of migrants by 1,000,000 to make x axis values more readable (in millions),
+# and divide remittances values by 1,000 to make y axis values more readable (in
+# billions, since they were already in millions). I use theme_classic() to get
+# rid of formatting clutter and change the color scheme to viridis so the years
+# are more clearly distinguishable, also adding legend title while I'm at it. I
+# then add a descriptive plot title and subtitle and label the axes
+
 joined %>% 
-  ggplot(aes(migrants / 1000000, remittances, color = year)) +
+  ggplot(aes(migrants / 1000000, remittances / 1000, color = year)) +
   geom_point() +
   theme_classic() +
-  scale_y_continuous(labels = function(x) format(x, big.mark = ",")) +
   scale_color_viridis_d(name = "Year") +
   labs(title = "Number of Migrants and Total Remittance Outflows by Year",
        subtitle = "Six linear outlier points on the right are the USA",
        x = "Number of Migrants (millions)",
-       y = "Remittance Outflows (millions of USD)")
+       y = "Remittance Outflows (billions of USD)")
+
+# adding columns for logged number of migrants and logged remittance outflows
 
 joined <- joined %>% 
   mutate(log_migrants = log(migrants),
          log_remittances = log(remittances))
 
+# plotting logged values in almost the same way as I plotted the other values.
+# Only differences in this plot compared to the plot above are the variables I
+# use and the descriptive titles and axis labels
+
 joined %>% 
   ggplot(aes(log_migrants, log_remittances, color = year)) +
   geom_point() +
   theme_classic() +
-  scale_y_continuous(labels = function(x) format(x, big.mark = ",")) +
   scale_color_viridis_d(name = "Year") +
-  labs(title = "Number of Migrants and Total Remittance Outflows by Year",
-       subtitle = "Log Transformation",
-       x = "Number of Migrants (natural log)",
-       y = "Remittance Outflows (natural log)")
+  labs(title = "Migrants and Total Remittance Outflows by Year",
+       subtitle = "Natural Log Transformation",
+       x = "Log Number of Migrants",
+       y = "Log Remittance Outflows")
 
 ```
 
@@ -88,9 +129,22 @@ joined %>%
 
 ```{r question_1c, echo=FALSE}
 
-joined %>% 
+# This r chunk finds the correlation of log_migrants and log_remittances by year
+# and prints them in a gt table, rounding the correlation coefficients to three
+# digits
+
+# creating correlations tibble by grouping by year and summarizing the
+# correlation for each year
+
+correlations <- joined %>% 
   group_by(year) %>% 
-  summarize(cor = cor(log_migrants, log_remittances)) %>% 
+  summarize(cor = cor(log_migrants, log_remittances))
+
+# rounding the values in the correlations data to 3 digits (somewhat
+# arbitrarily) and piping it through gt() to produce a nice table. I then add a
+# descriptive title and subtitle, column labels, and a source note
+
+correlations %>% 
   mutate(cor = round(cor, digits = 3)) %>% 
   gt() %>% 
   tab_header(title = "Correlation between Migrants and Remittances by Year",
@@ -100,27 +154,69 @@ joined %>%
   tab_source_note("Sources: UN International Migrant Stock
                   and World Bank Remittance Data")
 
+# Side note: out of curiosity, I also looked at the correlation between migrants
+# and remittances for each year (not logged values) and the correlations were
+# all about a tenth or more higher than the logged data correlations - getting
+# as high as .916 in 2005! I wonder why that is, and which more accurately
+# states the degree to which migrants and remittances are correlated. See below
+
+# joined %>% 
+#   group_by(year) %>% 
+#   summarize(cor = cor(migrants, remittances))
+
+# year  cor
+# <chr> <dbl>
+#
+# 1990	0.7265286			
+# 1995	0.7949481			
+# 2000	0.8707546			
+# 2005	0.9163149			
+# 2010	0.8659647			
+# 2015	0.8104758	
+
 ```
 
 <br>
 
-The correlation coefficient from 2015 supports my hypothesis from 1A. There appears to be a strong positive correlation between the number of migrants and the amount of remittance outflows, meaning that an increase in one is associated with an increase in the other.
+The correlation coefficient from 2015 supports my hypothesis from 1A. There appears to be a strong positive correlation between the (logged) number of migrants and the (logged) amount of remittance outflows, meaning that an increase in one is closely associated with an increase in the other.
 
 ## 2) Running and Interpreting Regressions
 
 ### 2A)
 
-Using lm(), run a linear regression of the effect of the logged number of migrants on the logged amount of remittances. Present a gt table with your results, including a 95% confidence interval. (Note- if you prefer to use gtsummary for this and subsequent problems, that’s fine too). Your results should look something like this:
+```{r question_2a, echo=FALSE}
 
-Effect of Number of Migrants on Amount of Remittances
+# This r chunk runs a linear regression to find the effect of log_migrants on
+# log_remittances, tidying up the results and presenting them in a gt table
 
-Both IV and DV are logged
+# assigning the model
 
-Variable	Estimate	Lower bound	Upper bound
+mod <- lm(log_remittances ~ log_migrants, data = joined)
 
-(Intercept)	−5.63	−6.44	−4.83
+# cleaning the model for display. I use tidy(conf.in = TRUE) to generate the
+# lower and upper bounds of a 95% confidence interval, then select the variables
+# I'd like to display in the table and round them all to two digits
 
-log_migrants	0.84	0.77	0.90
+tidy_mod <- mod %>% 
+  tidy(conf.int = TRUE) %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(estimate = round(estimate, digits = 2),
+         conf.low = round(conf.low, digits = 2),
+         conf.high = round(conf.high, digits = 2))
+
+# making a table to display the results. Text for the title, subtitle, and
+# column labels were all copied from the assignment prompt
+
+tidy_mod %>% 
+  gt() %>% 
+  tab_header(title = "Effect of Number of Migrants on Amount of Remittances",
+             subtitle = "Both IV and DV are logged") %>% 
+  cols_label(term = "Variable",
+             estimate = "Estimate",
+             conf.low = "Lower Bound",
+             conf.high = "Upper Bound")
+
+```
 
 ### 2B)
 
