@@ -1,0 +1,16 @@
+---
+title: "Exam 3"
+author: "Westley Cook"
+date: "4/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# standard first load
+
+library(tidyverse)
+
+```
+
