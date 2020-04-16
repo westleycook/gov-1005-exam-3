@@ -12,5 +12,128 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 
+# for skim()
+
+library(skimr)
+
+# for gt tables
+
+library(gt)
+
 ```
+
+## Question 1: Exploratory Data Analysis
+
+### 1A) My hypothesis
+
+I expect the correlation between number of migrants and the amount of remittances to be positive, because it seems intuitive that the more migrants are in a country, the more people there are who might be sending money home to other countries. Furthermore, I expect the correlation to be somewhat strong, meaning I expect the amount of remittances to rise in a pretty-close-to-linear manner with the number of migrants. I’d like to control for migrants’ income level and country/region of origin though; I imagine migrants’ money-sharing habits may differ by income, and those from poor countries/regions are probably more likely to send money home than those from rich countries/regions.
+
+### 1B) Read and wrangle data
+
+```{r question_1b, echo=FALSE}
+
+raw_migrants <- read_csv("raw-data/number_migrants.csv", col_types = cols())
+
+raw_remittances <- read_csv("raw-data/remittances.csv", col_types = cols())
+
+migrants <- raw_migrants %>% 
+  pivot_longer(cols = migrants_1990:migrants_2015,
+               names_to = "year",
+               names_prefix = "migrants_",
+               values_to = "migrants",
+               values_drop_na = TRUE)
+
+remittances <- raw_remittances %>% 
+  pivot_longer(cols = remittances_1990:remittances_2015,
+               names_to = "year",
+               names_prefix = "remittances_",
+               values_to = "remittances",
+               values_drop_na = TRUE) %>% 
+  rename(country = Country)
+
+joined <- left_join(migrants, remittances, by = c("country", "year")) %>% 
+  na.omit() %>% 
+  filter(remittances != 0,
+         migrants != 0)
+
+joined %>% 
+  ggplot(aes(migrants / 1000000, remittances, color = year)) +
+  geom_point() +
+  theme_classic() +
+  scale_y_continuous(labels = function(x) format(x, big.mark = ",")) +
+  scale_color_viridis_d(name = "Year") +
+  labs(title = "Number of Migrants and Total Remittance Outflows by Year",
+       subtitle = "Six linear outlier points on the right are the USA",
+       x = "Number of Migrants (millions)",
+       y = "Remittance Outflows (millions of USD)")
+
+joined <- joined %>% 
+  mutate(log_migrants = log(migrants),
+         log_remittances = log(remittances))
+
+joined %>% 
+  ggplot(aes(log_migrants, log_remittances, color = year)) +
+  geom_point() +
+  theme_classic() +
+  scale_y_continuous(labels = function(x) format(x, big.mark = ",")) +
+  scale_color_viridis_d(name = "Year") +
+  labs(title = "Number of Migrants and Total Remittance Outflows by Year",
+       subtitle = "Log Transformation",
+       x = "Number of Migrants (natural log)",
+       y = "Remittance Outflows (natural log)")
+
+```
+
+### 1C) Interpret correlation coefficients
+
+```{r question_1c, echo=FALSE}
+
+joined %>% 
+  group_by(year) %>% 
+  summarize(cor = cor(log_migrants, log_remittances)) %>% 
+  mutate(cor = round(cor, digits = 3)) %>% 
+  gt() %>% 
+  tab_header(title = "Correlation between Migrants and Remittances by Year",
+             subtitle = "From log-transformed data") %>% 
+  cols_label(year = "Year",
+             cor = "Correlation") %>% 
+  tab_source_note("Sources: UN International Migrant Stock
+                  and World Bank Remittance Data")
+
+```
+
+<br>
+
+The correlation coefficient from 2015 supports my hypothesis from 1A. There appears to be a strong positive correlation between the number of migrants and the amount of remittance outflows, meaning that an increase in one is associated with an increase in the other.
+
+## 2) Running and Interpreting Regressions
+
+### 2A)
+
+Using lm(), run a linear regression of the effect of the logged number of migrants on the logged amount of remittances. Present a gt table with your results, including a 95% confidence interval. (Note- if you prefer to use gtsummary for this and subsequent problems, that’s fine too). Your results should look something like this:
+
+Effect of Number of Migrants on Amount of Remittances
+
+Both IV and DV are logged
+
+Variable	Estimate	Lower bound	Upper bound
+
+(Intercept)	−5.63	−6.44	−4.83
+
+log_migrants	0.84	0.77	0.90
+
+### 2B)
+
+When both our independent variable and dependent variable are logged, we can interpret the regression results as an elasticity. In other words, the coefficient is the estimated percent change in your dependent variable for a percent change in your independent variable. You can read more about this here.
+
+In fewer than 100 words, explain what your regression tells us about the estimated average treatment effect of more migrants. Provide both the Frequentist and Bayesian interpretation of this coefficient.
+
+### 2C) Estimating Fitted Values
+
+In 2015, the value for the United States’ logged number of migrants was 17.69. Write out the formula that you would use to calculate the fitted value, or predicted log remittances, for the US in that year, given the results in your tibble above. Then, check your work by pulling the relevant fitted value using the augment or predict command. Print the code you use for augment or predict so that we can see both methods. If you use augment, remember that you can add a data = command so that you can filter your augmented data to the relevant observations for the USA in 2015. Note that your predicted values from the formula may differ slightly from your augment or predict value if you rounded your coefficients.
+
+You can format a mathematical equation in an R markdown document by using two pairs of dollar signs. Example: $$ y = 100.6 + 1.3 * x $$ gives you:
+
+y=100.6+1.3∗x
+
 
