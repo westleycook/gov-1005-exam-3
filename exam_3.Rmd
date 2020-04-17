@@ -220,11 +220,17 @@ tidy_mod %>%
 
 ### 2B)
 
-When both our independent variable and dependent variable are logged, we can interpret the regression results as an elasticity. In other words, the coefficient is the estimated percent change in your dependent variable for a percent change in your independent variable. You can read more about this here.
+The estimate for log_migrants is 0.84, which tells us that *on average*, a 1% increase in migrants is associated with an increase of 0.84% for remittances. Unfortunately, we can’t say for certain that this is causal, since we haven’t taken all other possible variables into consideration. There is also an element of uncertainty; the lower and upper bounds of log_migrants indicate that the actual average increase in remittances associated with a 1% increase in migrants could be as low as 0.77% or as high as 0.90%.
 
-In fewer than 100 words, explain what your regression tells us about the estimated average treatment effect of more migrants. Provide both the Frequentist and Bayesian interpretation of this coefficient.
+The Bayesian interpretation of this interval is that we can be 95% confident (i.e. there’s a 95% chance) that the true average treatment effect on remittances of a 1% increase in migrants lies between 0.77% and 0.90%. The frequentist interpretation is that if we ran this same model repeatedly, it would generate an interval containing the true average treatment effect 95% of the time.
 
 ### 2C) Estimating Fitted Values
+
+```{r question_2c, echo=FALSE}
+
+
+
+```
 
 In 2015, the value for the United States’ logged number of migrants was 17.69. Write out the formula that you would use to calculate the fitted value, or predicted log remittances, for the US in that year, given the results in your tibble above. Then, check your work by pulling the relevant fitted value using the augment or predict command. Print the code you use for augment or predict so that we can see both methods. If you use augment, remember that you can add a data = command so that you can filter your augmented data to the relevant observations for the USA in 2015. Note that your predicted values from the formula may differ slightly from your augment or predict value if you rounded your coefficients.
 
