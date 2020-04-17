@@ -1,7 +1,7 @@
 ---
 title: "Exam 3"
 author: "Westley Cook"
-date: "4/18/2020"
+date: "4/17/2020"
 output: html_document
 ---
 
@@ -76,9 +76,8 @@ remittances <- raw_remittances %>%
   rename(country = Country)
 
 # joining the data. I use left_join() to preserve the continents variable in
-# migrants and join by country and year. I then use omit any NA values from the
-# results and use filter() to get rid of any 0 values under remittances or
-# migrants
+# migrants and join by country and year. I then omit any NA values from the
+# results and use filter() to omit any 0 values under remittances or migrants
 
 joined <- left_join(migrants, remittances, by = c("country", "year")) %>% 
   na.omit() %>% 
@@ -90,8 +89,8 @@ joined <- left_join(migrants, remittances, by = c("country", "year")) %>%
 # and divide remittances values by 1,000 to make y axis values more readable (in
 # billions, since they were already in millions). I use theme_classic() to get
 # rid of formatting clutter and change the color scheme to viridis so the years
-# are more clearly distinguishable, also adding legend title while I'm at it. I
-# then add a descriptive plot title and subtitle and label the axes
+# are more clearly distinguishable, also adding a legend title while I'm at it.
+# I then add a descriptive plot title and subtitle and label the axes
 
 joined %>% 
   ggplot(aes(migrants / 1000000, remittances / 1000, color = year)) +
@@ -223,7 +222,7 @@ tidy_mod %>%
 
 ### 2B) Interpret the results 
 
-The estimate for log_migrants is 0.84, which tells us that *on average*, a 1% increase in migrants is associated with an increase of 0.84% for remittances. Unfortunately, we can’t say for certain that this is causal, since we haven’t taken all other possible variables into consideration. There is also an element of uncertainty; the lower and upper bounds of log_migrants indicate that the actual average increase in remittances associated with a 1% increase in migrants could be as low as 0.77% or as high as 0.90%.
+The estimate for log_migrants is 0.84, which tells us that on average, a 1% increase in migrants is associated with an increase of 0.84% for remittances. Unfortunately, we can’t say for certain that this is causal, since we haven’t taken all other possible variables into consideration. There is also an element of uncertainty; the lower and upper bounds of log_migrants indicate that the actual average increase in remittances associated with a 1% increase in migrants could be as low as 0.77% or as high as 0.90%.
 
 The Bayesian interpretation of this interval is that we can be 95% confident (i.e. there’s a 95% chance) that the true average treatment effect on remittances of a 1% increase in migrants lies between 0.77% and 0.90%. The frequentist interpretation is that if we ran this same model repeatedly, it would generate an interval containing the true average treatment effect 95% of the time.
 
@@ -233,7 +232,7 @@ The formula for estimating a fitted value based on our model is
 
 $$ \hat y = b_0 + b_1 * x $$
 
-where $\hat y$ is the predicted value of log_remittances, $b_0$ is the intercept, $b_1$ is the slope coefficient (the estimate of log_migrants from our table in 2A), and $x$ is the value of log_migrants we will use to predict log_remittances. Plugging in values from the table, when the logged number of migrants is 17.69, as it was for the United States in 2015, we get
+where $\hat y$ is the predicted value of log_remittances, $b_0$ is the intercept, $b_1$ is the slope coefficient (the estimate of log_migrants from our table in 2A), and $x$ is the value of log_migrants we will use to predict log_remittances. Plugging in values from the table, when the logged number of migrants is 17.69 (as it was for the United States in 2015) we get
 
 $$ \hat y = -5.63 + 0.84 * 17.69 = 9.2296 $$
 
@@ -248,13 +247,24 @@ predict(lm(log_remittances ~ log_migrants, data = joined),
 
 ```
 
-## Question 3: Multivariate regression
+## Question 3: Multivariate Regression
 
 ### 3A) Run a regression
 
 ```{r question_3a, echo=FALSE}
 
+# This r chunk assigns a multivariate model to find the effect of log_migrants
+# on log_remittances by continent, with an interaction term
+# log_migrants:continent. It then tidies the results of the model and prints
+# them in a table
+
+# assigning the model, using * to generate a model with an interaction term
+
 cont_mod <- lm(log_remittances ~ log_migrants * continent, data = joined) 
+
+# tidying the model, using conf.int = TRUE to pull the lower and upper bounds of
+# a 95% confidence interval. I then select the variables I want in my table and
+# round them all to 2 significant digits
 
 tidy_cont_mod <- cont_mod %>% 
   tidy(conf.int = TRUE) %>% 
@@ -262,6 +272,9 @@ tidy_cont_mod <- cont_mod %>%
   mutate(estimate = round(estimate, digits = 2),
          conf.low = round(conf.low, digits = 2),
          conf.high = round(conf.high, digits = 2))
+
+# making a table. I pipe the tidied model results to gt(), then add a title,
+# subtitle, column labels, and source note for nice presentation
 
 tidy_cont_mod %>% 
   gt() %>% 
@@ -280,11 +293,25 @@ tidy_cont_mod %>%
 
 ### 3B) Interpret the results
 
-We found a regression coefficient of .29 for the interaction of log migrants and the continent “Americas”. In fewer than 100 words, interpret this coefficient, and explain what the difference is between the coefficients log_migrants, continentAmericas and log_migrants:continentAmericas.
+The coefficient of 0.62 for log_migrants represents the slope of the base regression line (which in this case represents the continent of Africa). It means that in Africa, on average, a 1% increase in migration is associated with a 0.62% increase in remittance outflows.
 
-## Question 4: Running many regressions
+The coefficient of 0.29 for log_migrants:continentAmericas represents an offset of the slope of the base regression line, meaning that the slope of the regression line for the Americas is 0.62 + 0.29 = 0.91; so in the Americas, on average, a 1% increase in migration is associated with a 0.91% increase in remittance outflows.
+
+The coefficient of -2.45 for continentAmericas represents an offset from the intercept, meaning that the intercept of the regression line for the Americas is -3.98 + (-2.45) = -6.43.
+
+## Question 4: Running Many Regressions
 
 ```{r question_4, echo=FALSE}
+
+# This r chunk runs 6 regressions, one per year, to find the effect of
+# log_migrants on log_remittances for each year in the data. It then tidies the
+# results and prints them in a table
+
+# assigning the model. I group_by(year) and nest() so I can use map() functions
+# to run the same model for each year without hassle. I create one new column to
+# hold the raw results of the model, and another to hold the tidied results
+# (using conf.int = TRUE to get the lower and upper bounds of a 95% confidence
+# interval)
 
 multi_mod <- joined %>% 
   group_by(year) %>% 
@@ -292,15 +319,24 @@ multi_mod <- joined %>%
   mutate(mod = map(data, ~ lm(log_remittances ~ log_migrants, data = .)),
          reg_results = map(mod, ~ tidy(., conf.int = TRUE)))
 
+# cleaning up the results and preparing them for display. I ungroup() because
+# grouped data makes the gt table look wonky, then unnest(reg_results) and
+# filter() for log_migrants results (ignoring the results for intercept). I then
+# select the variables I want to display, mutate() to round all values to 2
+# significant digits, and arrange the data by year (lowest to highest)
+
 tidy_multi_mod <- multi_mod %>% 
   ungroup() %>% 
   unnest(reg_results) %>% 
   filter(term == "log_migrants") %>% 
   select(year, estimate, conf.low, conf.high) %>% 
-  arrange(year) %>% 
   mutate(estimate = round(estimate, digits = 2),
          conf.low = round(conf.low, digits = 2),
-         conf.high = round(conf.high, digits = 2))
+         conf.high = round(conf.high, digits = 2)) %>% 
+  arrange(year)
+
+# making a table. As before, I pipe the display-ready data to gt() and the add a
+# descriptive title, subtitle, column labels, and source note
   
 tidy_multi_mod %>% 
   gt() %>% 
@@ -313,12 +349,4 @@ tidy_multi_mod %>%
   tab_source_note("Sources: UN International Migrant Stock
                   and World Bank Remittance Data")
 
-
 ```
-
-
-
-
-
-
-
