@@ -180,9 +180,9 @@ correlations %>%
 
 The correlation coefficient from 2015 supports my hypothesis from 1A. There appears to be a strong positive correlation between the (logged) number of migrants and the (logged) amount of remittance outflows, meaning that an increase in one is closely associated with an increase in the other.
 
-## 2) Running and Interpreting Regressions
+## Question 2: Running and Interpreting Regressions
 
-### 2A)
+### 2A) Run a regression 
 
 ```{r question_2a, echo=FALSE}
 
@@ -218,24 +218,33 @@ tidy_mod %>%
 
 ```
 
-### 2B)
+### 2B) Interpret the results 
 
 The estimate for log_migrants is 0.84, which tells us that *on average*, a 1% increase in migrants is associated with an increase of 0.84% for remittances. Unfortunately, we can’t say for certain that this is causal, since we haven’t taken all other possible variables into consideration. There is also an element of uncertainty; the lower and upper bounds of log_migrants indicate that the actual average increase in remittances associated with a 1% increase in migrants could be as low as 0.77% or as high as 0.90%.
 
 The Bayesian interpretation of this interval is that we can be 95% confident (i.e. there’s a 95% chance) that the true average treatment effect on remittances of a 1% increase in migrants lies between 0.77% and 0.90%. The frequentist interpretation is that if we ran this same model repeatedly, it would generate an interval containing the true average treatment effect 95% of the time.
 
-### 2C) Estimating Fitted Values
+### 2C) Estimate fitted values 
 
-```{r question_2c, echo=FALSE}
+The formula for estimating a fitted value based on our model is
 
+$$ \hat y = b_0 + b_1 * x $$
 
+where $\hat y$ is the predicted value of log_remittances, $b_0$ is the intercept, $b_1$ is the slope coefficient (the estimate of log_migrants from our table in 2A), and $x$ is the value of log_migrants we will use to predict log_remittances. Plugging in values from the table, when the logged number of migrants is 17.69, as it was for the United States in 2015, we get
+
+$$ \hat y = -5.63 + 0.84 * 17.69 = 9.2296 $$
+
+which is essentially the same as R's predict() function outputs. (The predictions differ slightly since we rounded values in the formula.)
+
+```{r question_2c}
+
+# predicting the logged remittances when log_migrants = 17.69
+
+predict(lm(log_remittances ~ log_migrants, data = joined),
+        tibble(log_migrants = 17.69))
 
 ```
 
-In 2015, the value for the United States’ logged number of migrants was 17.69. Write out the formula that you would use to calculate the fitted value, or predicted log remittances, for the US in that year, given the results in your tibble above. Then, check your work by pulling the relevant fitted value using the augment or predict command. Print the code you use for augment or predict so that we can see both methods. If you use augment, remember that you can add a data = command so that you can filter your augmented data to the relevant observations for the USA in 2015. Note that your predicted values from the formula may differ slightly from your augment or predict value if you rounded your coefficients.
 
-You can format a mathematical equation in an R markdown document by using two pairs of dollar signs. Example: $$ y = 100.6 + 1.3 * x $$ gives you:
-
-y=100.6+1.3∗x
 
 
