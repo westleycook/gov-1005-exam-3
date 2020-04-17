@@ -205,7 +205,8 @@ tidy_mod <- mod %>%
          conf.high = round(conf.high, digits = 2))
 
 # making a table to display the results. Text for the title, subtitle, and
-# column labels were all copied from the assignment prompt
+# column labels were all copied from the assignment prompt. I add a source note
+# for more professional display
 
 tidy_mod %>% 
   gt() %>% 
@@ -214,7 +215,9 @@ tidy_mod %>%
   cols_label(term = "Variable",
              estimate = "Estimate",
              conf.low = "Lower Bound",
-             conf.high = "Upper Bound")
+             conf.high = "Upper Bound") %>% 
+  tab_source_note("Sources: UN International Migrant Stock
+                  and World Bank Remittance Data")
 
 ```
 
@@ -244,6 +247,77 @@ predict(lm(log_remittances ~ log_migrants, data = joined),
         tibble(log_migrants = 17.69))
 
 ```
+
+## Question 3: Multivariate regression
+
+### 3A) Run a regression
+
+```{r question_3a, echo=FALSE}
+
+cont_mod <- lm(log_remittances ~ log_migrants * continent, data = joined) 
+
+tidy_cont_mod <- cont_mod %>% 
+  tidy(conf.int = TRUE) %>% 
+  select(term, estimate, conf.low, conf.high) %>% 
+  mutate(estimate = round(estimate, digits = 2),
+         conf.low = round(conf.low, digits = 2),
+         conf.high = round(conf.high, digits = 2))
+
+tidy_cont_mod %>% 
+  gt() %>% 
+  tab_header(
+    title = "Effect of Number of Migrants on Remittances by Continent",
+    subtitle = "Both IV and DV are logged") %>% 
+  cols_label(
+    term = "Variable",
+    estimate = "Estimate",
+    conf.low = "Lower Bound",
+    conf.high = "Upper Bound") %>% 
+  tab_source_note(
+    "Sources: UN International Migrant Stock and World Bank Remittance Data")
+
+```
+
+### 3B) Interpret the results
+
+We found a regression coefficient of .29 for the interaction of log migrants and the continent “Americas”. In fewer than 100 words, interpret this coefficient, and explain what the difference is between the coefficients log_migrants, continentAmericas and log_migrants:continentAmericas.
+
+## Question 4: Running many regressions
+
+```{r question_4, echo=FALSE}
+
+multi_mod <- joined %>% 
+  group_by(year) %>% 
+  nest() %>% 
+  mutate(mod = map(data, ~ lm(log_remittances ~ log_migrants, data = .)),
+         reg_results = map(mod, ~ tidy(., conf.int = TRUE)))
+
+tidy_multi_mod <- multi_mod %>% 
+  ungroup() %>% 
+  unnest(reg_results) %>% 
+  filter(term == "log_migrants") %>% 
+  select(year, estimate, conf.low, conf.high) %>% 
+  arrange(year) %>% 
+  mutate(estimate = round(estimate, digits = 2),
+         conf.low = round(conf.low, digits = 2),
+         conf.high = round(conf.high, digits = 2))
+  
+tidy_multi_mod %>% 
+  gt() %>% 
+  tab_header(title = "Effect of Number of Migrants on Remittances by Year",
+             subtitle = "Both IV and DV are logged") %>% 
+  cols_label(year = "Year",
+             estimate = "Estimated Effect",
+             conf.low = "Lower Bound",
+             conf.high = "Upper Bound") %>% 
+  tab_source_note("Sources: UN International Migrant Stock
+                  and World Bank Remittance Data")
+
+
+```
+
+
+
 
 
 
